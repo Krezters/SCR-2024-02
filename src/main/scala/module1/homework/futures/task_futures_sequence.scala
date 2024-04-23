@@ -21,5 +21,18 @@ object task_futures_sequence {
    * @return асинхронную задачу с кортежом из двух списков
    */
   def fullSequence[A](futures: List[Future[A]])
-                     (implicit ex: ExecutionContext): Future[(List[A], List[Throwable])] = ???
+                     (implicit ex: ExecutionContext): Future[(List[A], List[Throwable])] = {
+    val promise = Promise[(List[A], List[Throwable])]
+
+    val results = futures.map(_.recover {case e => e})
+    Future.sequence(results).map(value => {
+      val result = value.partition {
+        case _: Throwable => false
+        case _ => true
+      }.asInstanceOf[(List[A], List[Throwable])]
+      promise.success(result)
+    })
+
+    promise.future
+  }
 }
